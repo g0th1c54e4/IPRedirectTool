@@ -8,7 +8,6 @@
 #include "net.h"
 #include "IOCTL.h"
 
-
 PDEVICE_OBJECT pDevice = NULL;
 HANDLE hFwpmEngine = 0;
 UINT32 ul32CallOutId = 0;

@@ -1,5 +1,6 @@
 #include "net.h"
 
+
 int checkCPUendian() {
 
 	union {

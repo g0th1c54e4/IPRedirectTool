@@ -1,5 +1,4 @@
 #pragma once
-
 #include <ntifs.h>
 
 #define DEVICE_NAME L"\\Device\\LingMoDev"

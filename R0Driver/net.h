@@ -1,6 +1,7 @@
 #ifndef WFP_REDIRECT_NET
 #define WFP_REDIRECT_NET
 
+
 typedef unsigned short int uint16;
 typedef unsigned long int uint32;
 

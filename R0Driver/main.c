@@ -27,25 +27,6 @@ VOID NTAPI classifyFunc_Redirect( // FWPM_LAYER_ALE_CONNECT_REDIRECT_V4
 	_In_ UINT64 flowContext,
 	_Inout_ FWPS_CLASSIFY_OUT* classifyOut
 );
-VOID NTAPI classifyFunc_Block( // FWPM_LAYER_ALE_AUTH_CONNECT_V4
-	_In_ const FWPS_INCOMING_VALUES* inFixedValues,
-	_In_ const FWPS_INCOMING_METADATA_VALUES* inMetaValues,
-	_Inout_opt_ void* layerData,
-	_In_opt_ const void* classifyContext,
-	_In_ const FWPS_FILTER* filter,
-	_In_ UINT64 flowContext,
-	_Inout_ FWPS_CLASSIFY_OUT* classifyOut
-);
-
-VOID NTAPI classifyFunc_StreamWrite( // FWPM_LAYER_STREAM_V4
-	_In_ const FWPS_INCOMING_VALUES* inFixedValues,
-	_In_ const FWPS_INCOMING_METADATA_VALUES* inMetaValues,
-	_Inout_opt_ void* layerData,
-	_In_opt_ const void* classifyContext,
-	_In_ const FWPS_FILTER* filter,
-	_In_ UINT64 flowContext,
-	_Inout_ FWPS_CLASSIFY_OUT* classifyOut
-);
 
 NTSTATUS NTAPI notifyFunc(
 	_In_ FWPS_CALLOUT_NOTIFY_TYPE notifyType,
@@ -74,8 +55,6 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pustrRegistry
 
 	pDriverObject->DriverUnload = DriverUnload;
 
-	//拦截和放行数据包使用     &FWPM_LAYER_ALE_AUTH_CONNECT_V4
-	//修改IP和端口号使用     &FWPM_LAYER_ALE_CONNECT_REDIRECT_V4
 	WfpLoad(&FWPM_LAYER_ALE_CONNECT_REDIRECT_V4);
 
 
@@ -106,12 +85,6 @@ VOID WfpLoad(GUID* layerKey) {
 	fwpsCallout.calloutKey = Guidkey;
 	if (IsEqualGUID(layerKey, &FWPM_LAYER_ALE_CONNECT_REDIRECT_V4)) {
 		fwpsCallout.classifyFn = classifyFunc_Redirect;
-	}
-	if (IsEqualGUID(layerKey, &FWPM_LAYER_ALE_AUTH_CONNECT_V4)) {
-		fwpsCallout.classifyFn = classifyFunc_Block;
-	}
-	if (IsEqualGUID(layerKey, &FWPM_LAYER_STREAM_V4)) {
-		fwpsCallout.classifyFn = classifyFunc_StreamWrite;
 	}
 	fwpsCallout.flowDeleteFn = flowDeleteFunc;
 	fwpsCallout.notifyFn = notifyFunc;
@@ -147,7 +120,6 @@ VOID WfpLoad(GUID* layerKey) {
 	fwpmFilter.action.calloutKey = Guidkey;
 	fwpmFilter.action.type = FWP_ACTION_CALLOUT_TERMINATING;
 	fwpmFilter.weight.type = FWP_EMPTY;
-	//FWPM_LAYER_ALE_AUTH_CONNECT_V4
 	fwpmFilter.layerKey = *layerKey;
 	fwpmFilter.subLayerKey = FWPM_SUBLAYER_UNIVERSAL;
 
@@ -364,132 +336,6 @@ VOID NTAPI flowDeleteFunc(
 ) {
 	return;
 }
-
-
-VOID NTAPI classifyFunc_Block(
-	_In_ const FWPS_INCOMING_VALUES* inFixedValues,
-	_In_ const FWPS_INCOMING_METADATA_VALUES* inMetaValues,
-	_Inout_opt_ void* layerData,
-	_In_opt_ const void* classifyContext,
-	_In_ const FWPS_FILTER* filter,
-	_In_ UINT64 flowContext,
-	_Inout_ FWPS_CLASSIFY_OUT* classifyOut
-) {
-
-	// 数据包的方向,取值 FWP_DIRECTION_INBOUND = 1 或 FWP_DIRECTION_OUTBOUND = 0
-	WORD wDirection = inFixedValues->incomingValue[FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_DIRECTION].value.int8;
-
-	// 定义本机地址与本机端口
-	ULONG ulLocalIp = inFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_LOCAL_ADDRESS].value.uint32;
-	UINT16 uLocalPort = inFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_LOCAL_PORT].value.uint16;
-
-	// 定义对端地址与对端端口
-	ULONG ulRemoteIp = inFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_REMOTE_ADDRESS].value.uint32;
-	UINT16 uRemotePort = inFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_REMOTE_PORT].value.uint16;
-
-	// 获取进程ID
-	ULONG64 processId = inMetaValues->processId;
-	UCHAR szProcessPath[256] = { 0 };
-	RtlZeroMemory(szProcessPath, 256);
-
-	// 获取进程路径
-	for (ULONG i = 0; i < inMetaValues->processPath->size; i++) {
-		// 里面是宽字符存储的
-		szProcessPath[i] = inMetaValues->processPath->data[i];
-	}
-
-	// 设置默认规则 允许连接
-	classifyOut->actionType = FWP_ACTION_PERMIT;
-
-	// 输出对端地址字符串 并阻断链接
-	char szRemoteAddress[256] = { 0 };
-	char szRemotePort[128] = { 0 };
-
-	sprintf(szRemoteAddress, "%u.%u.%u.%u", (ulRemoteIp >> 24) & 0xFF, (ulRemoteIp >> 16) & 0xFF, (ulRemoteIp >> 8) & 0xFF, (ulRemoteIp) & 0xFF);
-	sprintf(szRemotePort, "%d", uRemotePort);
-
-
-	if (strcmp(szRemoteAddress, "110.42.213.115") == 0 && strcmp(szRemotePort, "3000") == 0) {
-
-		// 拒绝连接 110.42.213.115
-		classifyOut->actionType = FWP_ACTION_BLOCK;
-		classifyOut->rights = classifyOut->rights & (~FWPS_RIGHT_ACTION_WRITE);
-		classifyOut->flags = classifyOut->flags | FWPS_CLASSIFY_OUT_FLAG_ABSORB;
-
-	}
-
-	if (wcsstr((PWCHAR)szProcessPath, L"QQPlus.exe") != 0) {
-
-		// 拒绝进程为 QQPlus.exe 的所有连接
-		classifyOut->actionType = FWP_ACTION_BLOCK;
-		classifyOut->rights = classifyOut->rights & (~FWPS_RIGHT_ACTION_WRITE);
-		classifyOut->flags = classifyOut->flags | FWPS_CLASSIFY_OUT_FLAG_ABSORB;
-
-	}
-
-	// 显示
-	DbgPrint("方向: %d -> 本端地址: %u.%u.%u.%u:%d -> 对端地址: %u.%u.%u.%u:%d -> 进程ID: %I64d -> 路径: %S \n",
-		wDirection,
-		(ulLocalIp >> 24) & 0xFF,
-		(ulLocalIp >> 16) & 0xFF,
-		(ulLocalIp >> 8) & 0xFF,
-		(ulLocalIp) & 0xFF,
-		uLocalPort,
-		(ulRemoteIp >> 24) & 0xFF,
-		(ulRemoteIp >> 16) & 0xFF,
-		(ulRemoteIp >> 8) & 0xFF,
-		(ulRemoteIp) & 0xFF,
-		uRemotePort,
-		processId,
-		(PWCHAR)szProcessPath);
-
-
-}
-
-
-VOID NTAPI classifyFunc_StreamWrite( // FWPM_LAYER_STREAM_V4
-	_In_ const FWPS_INCOMING_VALUES* inFixedValues,
-	_In_ const FWPS_INCOMING_METADATA_VALUES* inMetaValues,
-	_Inout_opt_ void* layerData,
-	_In_opt_ const void* classifyContext,
-	_In_ const FWPS_FILTER* filter,
-	_In_ UINT64 flowContext,
-	_Inout_ FWPS_CLASSIFY_OUT* classifyOut
-) {
-	if (KeGetCurrentIrql() > DISPATCH_LEVEL) {
-		DbgPrint("[LingMoDriver]Stream Write No Privilege.\n");
-		return;
-	}
-	FWPS_STREAM_CALLOUT_IO_PACKET* pStreamPacket = (FWPS_STREAM_CALLOUT_IO_PACKET*)layerData;
-	ULONG ulRemoteIp = inFixedValues->incomingValue[FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_REMOTE_ADDRESS].value.uint32;
-
-	if ((pStreamPacket) && (pStreamPacket->streamData != 0) && (pStreamPacket->streamData->dataLength != 0)) {
-
-		DbgPrint("[LingMoDriver]侦测到流量流动! 0x%X\n", ulRemoteIp);
-
-		DWORD64 streamLength = pStreamPacket->streamData->dataLength;
-
-		BOOLEAN inbound = (BOOLEAN)((pStreamPacket->streamData->flags & FWPS_STREAM_FLAG_RECEIVE) == FWPS_STREAM_FLAG_RECEIVE);
-		BYTE* stream = ExAllocatePoolWithTag(NonPagedPool, streamLength, 0xFACE0001); //此处的TAG数值可自行拟定
-		DWORD64 byte_copied = 0;
-		if (stream != NULL) {
-			RtlZeroMemory(stream, streamLength);
-			FwpsCopyStreamDataToBuffer(
-				pStreamPacket->streamData,
-				stream,
-				streamLength,
-				&byte_copied);
-
-
-			//未写完
-
-			ExFreePool(stream);
-		}
-
-	}
-	classifyOut->actionType = FWP_ACTION_CONTINUE;
-}
-
 
 NTSTATUS IoControl_UpdateRedirect(UpdateRedirect* pUpdateRedirectInfo, ULONG* pdwReadBytes) {
 

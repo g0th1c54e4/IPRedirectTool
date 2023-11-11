@@ -327,7 +327,7 @@ void CR3ToolDlg::OnBnClickedButtonRedirectSwitch(){
 		if ((lstrcmpW(cstrLocalIp, L"") == 0) || (lstrcmpW(cstrTargetIp, L"") == 0) || (lstrcmpW(cstrTargetPort, L"") == 0) || (lstrcmpW(cstrLocalPort, L"") == 0)) {
 			MessageBox(TEXT("请先输入重定向信息"), TEXT("IPRedirectTool:"), MB_ICONERROR);
 			return;
-		}
+		}s
 
 		HANDLE hDevice = CreateFileW(SYMBOL_NAME, GENERIC_READ | GENERIC_WRITE, NULL, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (hDevice == INVALID_HANDLE_VALUE) {

@@ -1,0 +1,77 @@
+;
+; R0Driver.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=System ; TODO: specify appropriate Class
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318} ; TODO: specify appropriate ClassGuid
+Provider=%ManufacturerName%
+CatalogFile=R0Driver.cat
+DriverVer= ; TODO: set DriverVer in stampinf property pages
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir = 12
+R0Driver_Device_CoInstaller_CopyFiles = 11
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+R0Driver.sys  = 1,,
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1 ; make sure the number matches with SourceDisksNames
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%R0Driver.DeviceDesc%=R0Driver_Device, Root\R0Driver ; TODO: edit hw-id
+
+[R0Driver_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+R0Driver.sys
+
+;-------------- Service installation
+[R0Driver_Device.NT.Services]
+AddService = R0Driver,%SPSVCINST_ASSOCSERVICE%, R0Driver_Service_Inst
+
+; -------------- R0Driver driver install sections
+[R0Driver_Service_Inst]
+DisplayName    = %R0Driver.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\R0Driver.sys
+
+;
+;--- R0Driver_Device Coinstaller installation ------
+;
+
+[R0Driver_Device.NT.CoInstallers]
+AddReg=R0Driver_Device_CoInstaller_AddReg
+CopyFiles=R0Driver_Device_CoInstaller_CopyFiles
+
+[R0Driver_Device_CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+[R0Driver_Device_CoInstaller_CopyFiles]
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[R0Driver_Device.NT.Wdf]
+KmdfService =  R0Driver, R0Driver_wdfsect
+[R0Driver_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+DiskName = "R0Driver Installation Disk"
+R0Driver.DeviceDesc = "R0Driver Device"
+R0Driver.SVCDESC = "R0Driver Service"

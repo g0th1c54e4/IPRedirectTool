@@ -169,7 +169,7 @@ void CR3ToolDlg::OnBnClickedButtonInstallDriver() { //安装驱动
 		return;
 	}
 
-	SC_HANDLE hScm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+	SC_HANDLE hScm = OpenSCManagerW(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (hScm == NULL) {
 		CString ErrorMsg = L"";
 		ErrorMsg.Format(L"服务控制管理器打开失败!错误代码:%d", GetLastError());
@@ -191,14 +191,16 @@ void CR3ToolDlg::OnBnClickedButtonInstallDriver() { //安装驱动
 			MessageBox(L"服务已存在,创建失败!", TEXT("IPRedirectTool:"), MB_ICONERROR);
 			hServer = OpenServiceW(hScm, wstrServerName, SERVICE_ALL_ACCESS);
 			if (hServer == NULL) {
+				CloseServiceHandle(hScm);
 				MessageBox(L"服务已存在,但获取失败!", TEXT("IPRedirectTool:"), MB_ICONERROR);
+				return;
 			}
-			return;
 		}
 		else {
 			CString ErrorMsg = L"";
 			ErrorMsg.Format(L"服务打开失败!错误代码:%d", GetLastError());
 			MessageBox(ErrorMsg, TEXT("IPRedirectTool:"), MB_ICONERROR);
+			CloseServiceHandle(hScm);
 			return;
 		}
 	}
@@ -274,7 +276,9 @@ void CR3ToolDlg::OnBnClickedButtonUninstallDriver() { //卸载驱动
 		MessageBox(ErrorMsg, TEXT("IPRedirectTool:"), MB_ICONERROR);
 		return;
 	}
-
+	if (hServer != NULL) {
+		CloseServiceHandle(hServer);
+	}
 	bDriverIsInstall = FALSE;
 	hServer = NULL;
 	MessageBox(TEXT("卸载成功"), TEXT("IPRedirectTool:"), MB_OK);

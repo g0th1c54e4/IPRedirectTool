@@ -8,7 +8,7 @@
     ((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method) \
 )
 
-#define IOCTL_UPDATE_REDIRECT CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, 0, FILE_ALL_ACCESS) //¶Á½ø³ÌÄÚ´æCR3
+#define IOCTL_UPDATE_REDIRECT CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, 0, FILE_ALL_ACCESS)
 
 
 typedef struct _UpdateRedirect {
